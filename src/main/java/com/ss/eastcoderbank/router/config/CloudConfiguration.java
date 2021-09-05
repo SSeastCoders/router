@@ -15,23 +15,18 @@ public class CloudConfiguration {
     @Bean
     public RouteLocator gatewayRoutes(RouteLocatorBuilder rlb){
         return rlb.routes()
-                //.route(r -> r.path("/users/**")
-                //        .uri("lb://USERS-API"))
-                        //.id("users-api"))
-               // .route(r -> r.path("/api/v1/accounts/**")
-                //        .uri("lb://ACCOUNT-API"))
-                       // .id("account-api"))
-               // .route(r -> r.path("/api/v1/transactions/**")
-                //        .uri("lb://TRANSACTION-API"))
-                       // .id("transactions-api"))
+                .route(r -> r.path("/users/**")
+                        .filters(f -> f.filter(filter))
+                        .uri("lb://USERS-API"))
+                .route(r -> r.path("/api/v1/accounts/**")
+                        .filters(f -> f.filter(filter))
+                        .uri("lb://ACCOUNT-API"))
+                .route(r -> r.path("/api/v1/transactions/**")
+                        .filters(f -> f.filter(filter))
+                        .uri("lb://TRANSACTION-API"))
                 .route(r -> r.path("/credit-cards/**")
                         .filters(f -> f.filter(filter))
                         .uri("lb://CARD-API"))
-                       // .id("card-api"))
-               // .route(r -> r.path("/debit-cards/**")
-                       // .id("card-api"))
-                //.route(r -> r.path("*")
-                //        .uri("localhost:9999/"))
                 .build();
     }
 
