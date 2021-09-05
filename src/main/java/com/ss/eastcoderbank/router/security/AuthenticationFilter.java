@@ -1,6 +1,13 @@
 package com.ss.eastcoderbank.router.security;
 
+import ch.qos.logback.core.net.SyslogOutputStream;
+import com.auth0.jwt.exceptions.JWTDecodeException;
+import com.auth0.jwt.interfaces.Claim;
 import io.jsonwebtoken.Claims;
+import lombok.extern.slf4j.Slf4j;
+import lombok.extern.slf4j.XSlf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -11,11 +18,16 @@ import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import javax.servlet.http.HttpServletRequest;
+import java.util.Collection;
 
 
 @Component
 @RefreshScope
+@Slf4j
 public class AuthenticationFilter implements GatewayFilter {
+
+    final Logger logger = LoggerFactory.getLogger(AuthenticationFilter.class);
 
     @Autowired
     private RouteValidator routeValidator;
@@ -28,29 +40,34 @@ public class AuthenticationFilter implements GatewayFilter {
         ServerHttpRequest req = exchange.getRequest();
 
         if(routeValidator.isSecured.test(req)) {
-            if(this.hasAuthHeader(req)){
-                return this.onError(exchange, "Missing authorization header", HttpStatus.UNAUTHORIZED);
+            try {
+                if (this.hasAuthHeader(req)) {
+                    logger.info("Token missing");
+                    return this.onError(exchange, "Missing authorization header", HttpStatus.UNAUTHORIZED);
+                }
+                final String token = this.getAuthHeader(req);
+                //System.out.println(token);
+                if (jwtHelper.isExpired(token)) {
+                    logger.info("Expired token");
+                    return this.onError(exchange, "Authorization expired", HttpStatus.UNAUTHORIZED);
+                }
+                //this.populateHeaders(exchange, token);
+            }catch (JWTDecodeException e){
+                logger.info(e.getMessage());
+                return this.onError(exchange, "Invalid token", HttpStatus.UNAUTHORIZED);
             }
-
-            final String token = this.getAuthHeader(req);
-
-            if(jwtHelper.isExpired(token)){
-                return this.onError(exchange, "Authorization expired", HttpStatus.UNAUTHORIZED);
-            }
-
-            this.populateHeaders(exchange, token);
         }
         return chain.filter(exchange);
     }
 
-
-
-    private boolean hasAuthHeader(ServerHttpRequest request){
-        return !request.getHeaders().containsKey("Authorization");
+    private boolean hasAuthHeader(ServerHttpRequest req) throws JWTDecodeException {
+        //return !req.getHeader(JwtUtil.JWT_UTIL.getHeader()).startsWith(JwtUtil.JWT_UTIL.getTokenPrefix());
+        return !req.getHeaders().containsKey(JwtUtil.JWT_UTIL.getHeader());
     }
 
-    private String getAuthHeader(ServerHttpRequest req){
+    private String getAuthHeader(ServerHttpRequest req) throws JWTDecodeException {
         return req.getHeaders().getOrEmpty("Authorization").get(0);
+       // return req.getHeader(JwtUtil.JWT_UTIL.getHeader());
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus httpStatus){
@@ -60,12 +77,12 @@ public class AuthenticationFilter implements GatewayFilter {
     }
 
     private void populateHeaders(ServerWebExchange exchange, String token){
-        Claims claims = jwtHelper.getClaims(token);
+        Collection<Claim> claims = jwtHelper.getClaims(token);
         exchange.getRequest().mutate()
-                .header("id", String.valueOf(claims.get("sub")))
-                .header("role", String.valueOf(claims.get("role")))
-                .header("exp", String.valueOf(claims.get("exp")))
-                .header("username", String.valueOf(claims.get("username")))
+                //.header("id", String.valueOf(claims.get("sub")))
+                //.header("role", String.valueOf(claims.get("role")))
+                //.header("exp", String.valueOf(claims.get("exp")))
+                //.header("username", String.valueOf(claims.get("username")))
         ;
     }
 
