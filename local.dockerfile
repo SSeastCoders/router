@@ -1,17 +1,7 @@
-# cache the dependcies aside from core-library
-#FROM maven:3.8.2-openjdk-11 as dependency
-#WORKDIR /app
-#
-#COPY core-library/pom.xml core-library/pom.xml
-#COPY card-api/pom.xml card-api/pom.xml
-#COPY pom.xml .
-#RUN mvn dependency:go-offline -DexcludeArtifactIds=core-library
 
-# stage 2 copy dependencies from cache and build project
+# stage 1 copy dependencies from cache and build project
 FROM maven:3.8.2-openjdk-11 as builder
 WORKDIR /app
-#COPY --from=dependency /root/.m2 /root/.m2
-#COPY --from=dependency /app /app
 COPY src /app/src
 COPY pom.xml /app/pom.xml
 RUN mvn clean install -DskipTests
